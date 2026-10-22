@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file in the project root
+# Load environment variables from .env file in the project root (if exists locally)
 basedir = Path(__file__).resolve().parent
 load_dotenv(basedir / '.env')
 
@@ -12,7 +12,7 @@ class Config:
 
     # Flask Settings
     SECRET_KEY = os.getenv('SECRET_KEY', 'default-dev-secret-key-canteen-2026')
-    DEBUG = os.getenv('FLASK_DEBUG', '1').lower() in ('1', 'true', 'yes')
+    DEBUG = os.getenv('FLASK_DEBUG', '0').lower() in ('1', 'true', 'yes')
 
     # MySQL Database Settings
     DB_HOST = os.getenv('DB_HOST', 'localhost')
@@ -21,10 +21,8 @@ class Config:
     DB_PASSWORD = os.getenv('DB_PASSWORD', '')
     DB_NAME = os.getenv('DB_NAME', 'college_smart_canteen')
 
-    # MySQL Connection Pool / Timeout Configuration
-    DB_CONNECT_TIMEOUT = int(os.getenv('DB_CONNECT_TIMEOUT', 5))
-    DB_POOL_NAME = 'canteen_pool'
-    DB_POOL_SIZE = int(os.getenv('DB_POOL_SIZE', 5))
+    # Connection timeout in seconds
+    DB_CONNECT_TIMEOUT = int(os.getenv('DB_CONNECT_TIMEOUT', 4))
 
     @classmethod
     def get_db_config(cls) -> dict:
