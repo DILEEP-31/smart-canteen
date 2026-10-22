@@ -2,27 +2,33 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file in the project root (if exists locally)
+# Load local .env if present (e.g. on local development machine)
 basedir = Path(__file__).resolve().parent
-load_dotenv(basedir / '.env')
+local_env = basedir / '.env'
+if local_env.exists():
+    load_dotenv(local_env)
 
 
 class Config:
-    """Application configuration loaded from environment variables."""
+    """
+    Application configuration.
+    Loads from environment variables first.
+    Falls back to Clever Cloud MySQL credentials for production deployments.
+    """
 
     # Flask Settings
-    SECRET_KEY = os.getenv('SECRET_KEY', 'default-dev-secret-key-canteen-2026')
+    SECRET_KEY = os.getenv('SECRET_KEY', 'canteen-super-secure-production-secret-2026')
     DEBUG = os.getenv('FLASK_DEBUG', '0').lower() in ('1', 'true', 'yes')
 
-    # MySQL Database Settings
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
+    # MySQL Database Settings (Clever Cloud production defaults)
+    DB_HOST = os.getenv('DB_HOST', 'bf3tlldf5kmhz489a8kk-mysql.services.clever-cloud.com')
     DB_PORT = int(os.getenv('DB_PORT', 3306))
-    DB_USER = os.getenv('DB_USER', 'canteen_app')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
-    DB_NAME = os.getenv('DB_NAME', 'college_smart_canteen')
+    DB_USER = os.getenv('DB_USER', 'u5a0vo9bskil5ti7')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', 'qH9gdJjFFclAsM9GLBK4')
+    DB_NAME = os.getenv('DB_NAME', 'bf3tlldf5kmhz489a8kk')
 
-    # Connection timeout in seconds
-    DB_CONNECT_TIMEOUT = int(os.getenv('DB_CONNECT_TIMEOUT', 4))
+    # Fast 5-second connection timeout
+    DB_CONNECT_TIMEOUT = int(os.getenv('DB_CONNECT_TIMEOUT', 5))
 
     @classmethod
     def get_db_config(cls) -> dict:
