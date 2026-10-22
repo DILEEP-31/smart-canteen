@@ -336,6 +336,13 @@ def reports_view():
     )
 
 
+@app.route("/ping")
+@app.route("/healthz")
+def ping():
+    """Simple ping route for cloud health checkers."""
+    return "OK", 200
+
+
 @app.route("/api/health")
 def api_health():
     """Diagnostic health check endpoint verifying MySQL connectivity."""
