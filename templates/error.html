@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}System Error{% endblock %}
+{% block page_title %}System Notification{% endblock %}
+
+{% block content %}
+<div class="error-page-container">
+    <div class="card error-card">
+        <div class="error-icon-box">
+            {% if is_db_error %}
+                🔌
+            {% elif error_code == 404 %}
+                🔍
+            {% else %}
+                ⚠️
+            {% endif %}
+        </div>
+
+        <div class="error-content">
+            <h2 class="error-title">
+                {% if is_db_error %}
+                    Database Connection Unavailable
+                {% elif error_code == 404 %}
+                    Page Not Found (404)
+                {% else %}
+                    Application Error ({{ error_code or 500 }})
+                {% endif %}
+            </h2>
+
+            <p class="error-message">
+                {{ error_message or "An unexpected condition occurred while communicating with the server." }}
+            </p>
+
+            {% if is_db_error %}
+            <div class="troubleshooting-guide">
+                <h4 class="guide-title">🛠️ MySQL Mentor Troubleshooting Checklist:</h4>
+                <ol class="guide-steps">
+                    <li>
+                        <strong>Verify MySQL Service is Running:</strong>
+                        <p class="small text-muted">In Windows PowerShell (as Administrator), run: <code>Get-Service -Name *mysql*</code> or start it with <code>Start-Service MySQL267</code> (or your MySQL service name).</p>
+                    </li>
+                    <li>
+                        <strong>Check <code>.env</code> Database Credentials:</strong>
+                        <p class="small text-muted">Make sure <code>.env</code> in this project folder contains your correct credentials:</p>
+                        <pre class="code-snippet">DB_HOST=localhost
+DB_PORT=3306
+DB_USER=canteen_app
+DB_PASSWORD=your_actual_mysql_password
+DB_NAME=college_smart_canteen</pre>
+                    </li>
+                    <li>
+                        <strong>Verify MySQL User Privileges:</strong>
+                        <p class="small text-muted">If user <code>canteen_app</code> has not been created yet in MySQL, run this in SQLyog (or MySQL command line):</p>
+                        <pre class="code-snippet">CREATE USER IF NOT EXISTS 'canteen_app'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON college_smart_canteen.* TO 'canteen_app'@'localhost';
+FLUSH PRIVILEGES;</pre>
+                    </li>
+                    <li>
+                        <strong>Verify Database Exists:</strong>
+                        <p class="small text-muted">Ensure <code>schema.sql</code> was executed in SQLyog and the <code>college_smart_canteen</code> database is populated.</p>
+                    </li>
+                </ol>
+            </div>
+            {% endif %}
+
+            <div class="error-actions mt-4">
+                <a href="{{ request.path }}" class="btn btn-primary btn-md">🔄 Retry Connection</a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-md">🏠 Return to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

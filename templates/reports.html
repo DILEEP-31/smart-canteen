@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Analytics{% endblock %}
+{% block page_title %}Daily Performance Reports & Analytics{% endblock %}
+
+{% block head_extra %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="reports-container">
+
+    <!-- Top Summary Banner -->
+    <div class="table-header-bar">
+        <div class="table-meta">
+            <h2 class="section-title">Aggregated Daily Canteen Analytics</h2>
+            <p class="section-subtitle">
+                Generated directly from database view <code>v_daily_report</code>. Visualized with Chart.js using real live records.
+            </p>
+        </div>
+        <div class="table-actions">
+            <span class="badge badge-primary badge-lg">
+                {{ daily_reports|length }} Day{% if daily_reports|length != 1 %}s{% endif %} Recorded
+            </span>
+        </div>
+    </div>
+
+    {% if daily_reports %}
+    <!-- Summary Stat Cards -->
+    <div class="metrics-grid mb-4">
+        {% set total_all_registered = daily_reports | sum(attribute='total_registered') %}
+        {% set total_all_completed = daily_reports | sum(attribute='total_completed') %}
+        {% set total_all_waiting = daily_reports | sum(attribute='still_waiting') %}
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">All-Time Registered</span>
+                <span class="metric-badge badge-primary">Orders</span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value">{{ total_all_registered }}</div>
+                <div class="metric-sub-value">Total Tickets</div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">All-Time Completed</span>
+                <span class="metric-badge badge-success">Fulfilled</span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value text-success">{{ total_all_completed }}</div>
+                <div class="metric-sub-value">
+                    {% if total_all_registered > 0 %}
+                        {{ ((total_all_completed / total_all_registered) * 100) | round(1) }}% Completion
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Latest Avg Turnaround</span>
+                <span class="metric-badge badge-info">Minutes</span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value text-info">
+                    {{ daily_reports[0].avg_completion_minutes or 0 }}
+                </div>
+                <div class="metric-sub-value">Min / Order</div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Highest Peak Concurrency</span>
+                <span class="metric-badge badge-warning">Tokens</span>
+            </div>
+            <div class="metric-value-row">
+                {% set max_peak = daily_reports | map(attribute='peak_active_tokens') | max %}
+                <div class="metric-main-value text-warning">{{ max_peak }}</div>
+                <div class="metric-sub-value">/ 15 Slots Max</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid mb-4">
+        <!-- Chart 1: Daily Orders Volume -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3 class="card-title">Order Volume: Registered vs Completed</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrapper">
+                    <canvas id="orderVolumeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart 2: Turnaround Time Trend -->
+        <div class="card chart-card">
+            <div class="card-header">
+                <h3 class="card-title">Average Service Turnaround Time (Minutes)</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrapper">
+                    <canvas id="turnaroundChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 3: Peak Active Tokens vs Capacity -->
+    <div class="card chart-card mb-4">
+        <div class="card-header">
+            <div class="card-title-group">
+                <h3 class="card-title">Peak Active Tokens vs 15-Slot Limit</h3>
+                <span class="badge badge-neutral">Max Limit = 15</span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-wrapper chart-wrapper-wide">
+                <canvas id="peakTokensChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Report Data Table -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Daily Summary Breakdown (<code>v_daily_report</code>)</h2>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="dailyReportTable">
+                    <thead>
+                        <tr>
+                            <th>Business Date</th>
+                            <th>Total Registered</th>
+                            <th>Total Completed</th>
+                            <th>Still Waiting</th>
+                            <th>Avg Completion Time</th>
+                            <th>Peak Active Tokens</th>
+                            <th>Kitchen Load</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in daily_reports %}
+                        <tr>
+                            <td>
+                                <strong>{{ row.business_date }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge badge-primary">{{ row.total_registered }}</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-success">{{ row.total_completed }}</span>
+                            </td>
+                            <td>
+                                {% if row.still_waiting > 0 %}
+                                    <span class="badge badge-warning">{{ row.still_waiting }} waiting</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.avg_completion_minutes is not none %}
+                                    <strong>{{ row.avg_completion_minutes }} min</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="font-bold {% if row.peak_active_tokens >= 15 %}text-danger{% elif row.peak_active_tokens >= 10 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ row.peak_active_tokens }} / 15
+                                </span>
+                            </td>
+                            <td>
+                                {% set load_pct = (row.peak_active_tokens / 15 * 100) | round(0) %}
+                                <div class="progress-bar-container progress-bar-sm">
+                                    <div class="progress-bar-fill {% if load_pct >= 100 %}fill-danger{% elif load_pct >= 66 %}fill-warning{% else %}fill-primary{% endif %}"
+                                         style="width: {{ load_pct }}%;"></div>
+                                </div>
+                                <span class="small text-muted">{{ load_pct }}% peak</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <h3 class="empty-title">No Daily Report Data Available</h3>
+                <p class="empty-description">
+                    The <code>v_daily_report</code> view has no entries yet. Register customers and deliver orders to generate daily aggregates and performance charts.
+                </p>
+                <a href="{{ url_for('register_customer') }}" class="btn btn-primary btn-md">+ Register Customer</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if daily_reports %}
+<script>
+    // Embedded real database aggregates for Chart.js
+    const reportData = {{ chart_payload | tojson | safe }};
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!reportData || !reportData.labels || reportData.labels.length === 0) return;
+
+        // Chart 1: Order Volume
+        const ctxVolume = document.getElementById('orderVolumeChart');
+        if (ctxVolume) {
+            new Chart(ctxVolume, {
+                type: 'bar',
+                data: {
+                    labels: reportData.labels,
+                    datasets: [
+                        {
+                            label: 'Registered Orders',
+                            data: reportData.registered,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Completed Orders',
+                            data: reportData.completed,
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 2: Turnaround Time Trend
+        const ctxTurnaround = document.getElementById('turnaroundChart');
+        if (ctxTurnaround) {
+            new Chart(ctxTurnaround, {
+                type: 'line',
+                data: {
+                    labels: reportData.labels,
+                    datasets: [{
+                        label: 'Avg Completion Time (Minutes)',
+                        data: reportData.avgMinutes,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Minutes' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Chart 3: Peak Active Tokens vs 15-Slot Limit
+        const ctxPeak = document.getElementById('peakTokensChart');
+        if (ctxPeak) {
+            new Chart(ctxPeak, {
+                type: 'bar',
+                data: {
+                    labels: reportData.labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Peak Active Tokens',
+                            data: reportData.peakTokens,
+                            backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                            borderColor: 'rgba(245, 158, 11, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        },
+                        {
+                            type: 'line',
+                            label: 'Physical Capacity Limit (15)',
+                            data: reportData.labels.map(() => 15),
+                            borderColor: '#ef4444',
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            fill: false,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 16,
+                            ticks: { stepSize: 3 },
+                            title: { display: true, text: 'Tokens Occupied' }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

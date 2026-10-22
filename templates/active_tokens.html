@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Active Tokens{% endblock %}
+{% block page_title %}Active Kitchen Tokens (1–15){% endblock %}
+
+{% block content %}
+<div class="active-tokens-container">
+
+    <!-- Top Status Bar -->
+    <div class="table-header-bar">
+        <div class="table-meta">
+            <h2 class="section-title">Active Orders in Kitchen</h2>
+            <p class="section-subtitle">
+                Showing all orders currently occupying one of the 15 physical kitchen token slots (from <code>v_active_tokens</code>).
+            </p>
+        </div>
+        <div class="table-actions">
+            <span class="badge {% if active_tokens|length >= 15 %}badge-danger{% else %}badge-primary{% endif %} badge-lg">
+                {{ active_tokens|length }} / 15 Slots Active
+            </span>
+            <a href="{{ url_for('register_customer') }}" class="btn btn-primary btn-sm">+ Register New</a>
+        </div>
+    </div>
+
+    <!-- Active Tokens Card & Table -->
+    <div class="card">
+        <div class="card-body">
+            {% if active_tokens %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="activeTokensTable">
+                    <thead>
+                        <tr>
+                            <th class="w-token">Token #</th>
+                            <th>Order Details</th>
+                            <th>Customer Name</th>
+                            <th>Roll Number</th>
+                            <th>Registered At</th>
+                            <th>Activated At</th>
+                            <th>Status</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for token in active_tokens %}
+                        <tr id="order-row-{{ token.order_id }}">
+                            <td>
+                                <div class="token-badge-large">
+                                    <span class="token-hash">#</span><span class="token-num">{{ token.token_number }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="order-id-main">Order #{{ token.order_id }}</div>
+                                <div class="text-muted small">Daily Serial: #{{ token.daily_serial }}</div>
+                            </td>
+                            <td>
+                                <div class="customer-name font-bold">{{ token.full_name }}</div>
+                            </td>
+                            <td>
+                                {% if token.roll_number %}
+                                    <span class="badge badge-light">{{ token.roll_number }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="time-display">{{ token.registered_at.strftime('%Y-%m-%d %H:%M:%S') if token.registered_at else '-' }}</span>
+                            </td>
+                            <td>
+                                <span class="time-display">{{ token.activated_at.strftime('%Y-%m-%d %H:%M:%S') if token.activated_at else '-' }}</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-active">{{ token.status }}</span>
+                            </td>
+                            <td class="text-right">
+                                <form method="POST" action="{{ url_for('complete_order_action', order_id=token.order_id) }}" class="inline-form"
+                                      onsubmit="return confirmDelivery(event, '{{ token.token_number }}', '{{ token.full_name|replace('\'', '\\\'') }}');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-success" title="Deliver order and free Token #{{ token.token_number }}">
+                                        ✓ Mark as Delivered
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🍽️</div>
+                <h3 class="empty-title">All Token Slots Are Free!</h3>
+                <p class="empty-description">
+                    There are no orders currently active in the kitchen. All 15 token slots are available for newly registered customers.
+                </p>
+                <a href="{{ url_for('register_customer') }}" class="btn btn-primary btn-md">+ Register Customer</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Procedural Logic Explanation Note -->
+    <div class="card mt-4 dbms-note-card">
+        <div class="card-header">
+            <h3 class="card-title">DBMS Workflow: <code>sp_complete_order</code></h3>
+        </div>
+        <div class="card-body small text-muted">
+            <p>
+                When you click <strong>Mark as Delivered</strong>, the Flask app calls <code>sp_complete_order(p_order_id, OUT ...)</code>:
+            </p>
+            <ol class="mt-2 mb-0">
+                <li>Acquires counter lock on <code>token_slots</code> row 1 to guarantee concurrency safety.</li>
+                <li>Updates order status to <code>COMPLETED</code> with current timestamp.</li>
+                <li>Frees up the slot in <code>token_slots</code>.</li>
+                <li>Finds the oldest record in <code>waiting_list</code> (FIFO order).</li>
+                <li>If a customer is waiting, assigns the freed token, changes order to <code>ACTIVE</code>, and marks queue entry as <code>PROMOTED</code>.</li>
+            </ol>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

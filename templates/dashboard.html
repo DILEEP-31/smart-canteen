@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Live Overview{% endblock %}
+{% block page_title %}Live Canteen Overview{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- FULL CAPACITY ALERT BANNER -->
+    {% if summary.active_tokens >= 15 %}
+    <div class="capacity-banner capacity-banner-danger" role="alert">
+        <div class="banner-icon">🚨</div>
+        <div class="banner-content">
+            <h3 class="banner-heading">FULL CAPACITY REACHED (15 / 15 TOKENS OCCUPIED)</h3>
+            <p class="banner-text">
+                All 15 physical kitchen token slots are currently occupied. Any newly registered customer will automatically receive a <strong>WAITING</strong> status and queue number until an active order is delivered.
+            </p>
+        </div>
+        <div class="banner-action">
+            <a href="{{ url_for('active_tokens_view') }}" class="btn btn-warning btn-sm">Manage Active Tokens &rarr;</a>
+        </div>
+    </div>
+    {% elif summary.active_tokens >= 12 %}
+    <div class="capacity-banner capacity-banner-warning" role="alert">
+        <div class="banner-icon">⚠️</div>
+        <div class="banner-content">
+            <h3 class="banner-heading">HIGH OCCUPANCY ({{ summary.active_tokens }} / 15 TOKENS OCCUPIED)</h3>
+            <p class="banner-text">Only {{ summary.available_slots }} token slot{% if summary.available_slots != 1 %}s{% endif %} remaining before reaching peak capacity.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 4 TOP METRIC CARDS -->
+    <div class="metrics-grid">
+        <!-- Active Tokens -->
+        <div class="metric-card {% if summary.active_tokens >= 15 %}card-full{% endif %}">
+            <div class="metric-header">
+                <span class="metric-title">Active Tokens</span>
+                <span class="metric-badge {% if summary.active_tokens >= 15 %}badge-danger{% else %}badge-primary{% endif %}">
+                    {{ summary.active_tokens }} / {{ summary.max_active_tokens }}
+                </span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value">{{ summary.active_tokens }}</div>
+                <div class="metric-sub-value">/ {{ summary.max_active_tokens }} Max Slots</div>
+            </div>
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+                {% set percent = (summary.active_tokens / summary.max_active_tokens * 100) | round(1) %}
+                <div class="progress-bar-fill {% if summary.active_tokens >= 15 %}fill-danger{% elif summary.active_tokens >= 10 %}fill-warning{% else %}fill-primary{% endif %}"
+                     style="width: {{ percent }}%;"></div>
+            </div>
+            <div class="metric-footer">
+                <a href="{{ url_for('active_tokens_view') }}">View all active tokens &rarr;</a>
+            </div>
+        </div>
+
+        <!-- Available Slots -->
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Available Slots</span>
+                <span class="metric-badge badge-success">Free for Orders</span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value text-success">{{ summary.available_slots }}</div>
+                <div class="metric-sub-value">Slots Ready</div>
+            </div>
+            <p class="metric-description">
+                {% if summary.available_slots > 0 %}
+                    Next customer gets instant <strong>ACTIVE</strong> token assignment.
+                {% else %}
+                    No free slots. Next registration joins waiting queue.
+                {% endif %}
+            </p>
+            <div class="metric-footer">
+                <a href="{{ url_for('register_customer') }}">Register customer now &rarr;</a>
+            </div>
+        </div>
+
+        <!-- Customers Waiting -->
+        <div class="metric-card {% if summary.customers_waiting > 0 %}card-waiting{% endif %}">
+            <div class="metric-header">
+                <span class="metric-title">Waiting Queue</span>
+                <span class="metric-badge {% if summary.customers_waiting > 0 %}badge-warning{% else %}badge-neutral{% endif %}">
+                    FIFO Queue
+                </span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value text-warning">{{ summary.customers_waiting }}</div>
+                <div class="metric-sub-value">In Queue</div>
+            </div>
+            <p class="metric-description">
+                {% if summary.customers_waiting > 0 %}
+                    First waiting customer will be auto-promoted when a token is delivered.
+                {% else %}
+                    No backlog. All customers are currently served.
+                {% endif %}
+            </p>
+            <div class="metric-footer">
+                <a href="{{ url_for('waiting_list_view') }}">Inspect waiting queue &rarr;</a>
+            </div>
+        </div>
+
+        <!-- Completed Today -->
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Completed Today</span>
+                <span class="metric-badge badge-info">Delivered</span>
+            </div>
+            <div class="metric-value-row">
+                <div class="metric-main-value text-info">{{ summary.completed_today }}</div>
+                <div class="metric-sub-value">Orders Served</div>
+            </div>
+            <p class="metric-description">Turnaround logged in order history today.</p>
+            <div class="metric-footer">
+                <a href="{{ url_for('order_history_view') }}">View order history &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUICK ACTION & LIVE SPLIT SECTION -->
+    <div class="dashboard-split-grid">
+        <!-- Live Active Tokens Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title-group">
+                    <h2 class="card-title">Current Active Tokens</h2>
+                    <span class="badge badge-primary">{{ active_tokens|length }} Active</span>
+                </div>
+                <a href="{{ url_for('active_tokens_view') }}" class="btn btn-sm btn-outline">Full Management</a>
+            </div>
+            <div class="card-body">
+                {% if active_tokens %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>Customer</th>
+                                <th>Order ID</th>
+                                <th>Activated At</th>
+                                <th class="text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for token in active_tokens %}
+                            <tr>
+                                <td>
+                                    <span class="token-pill token-pill-active">#{{ token.token_number }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ token.full_name }}</strong>
+                                    {% if token.roll_number %}
+                                        <div class="text-muted small">Roll: {{ token.roll_number }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>#{{ token.order_id }} (Serial #{{ token.daily_serial }})</td>
+                                <td>{{ token.activated_at.strftime('%H:%M:%S') if token.activated_at else '-' }}</td>
+                                <td class="text-right">
+                                    <form method="POST" action="{{ url_for('complete_order_action', order_id=token.order_id) }}" class="inline-form" onsubmit="return confirmDelivery(event, '{{ token.token_number }}', '{{ token.full_name|replace('\'', '\\\'') }}');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-xs btn-success">
+                                            ✓ Mark Delivered
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">🍽️</div>
+                    <h3 class="empty-title">No Active Tokens</h3>
+                    <p class="empty-description">All 15 token slots are currently vacant. Register a customer to assign Token #1.</p>
+                    <a href="{{ url_for('register_customer') }}" class="btn btn-primary btn-sm">+ Register Customer</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Waiting Queue Quick Preview Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title-group">
+                    <h2 class="card-title">Waiting Queue (FIFO)</h2>
+                    <span class="badge badge-warning">{{ waiting_list|length }} Waiting</span>
+                </div>
+                <a href="{{ url_for('waiting_list_view') }}" class="btn btn-sm btn-outline">Full Queue</a>
+            </div>
+            <div class="card-body">
+                {% if waiting_list %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Pos</th>
+                                <th>Customer</th>
+                                <th>Queue #</th>
+                                <th>Wait Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in waiting_list[:5] %}
+                            <tr>
+                                <td>
+                                    <span class="queue-position-pill">#{{ item.queue_position }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ item.full_name }}</strong>
+                                    {% if item.roll_number %}
+                                        <div class="text-muted small">{{ item.roll_number }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>Q-{{ item.queue_number }}</td>
+                                <td>
+                                    <span class="wait-time-tag">{{ item.waiting_minutes }} min</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if waiting_list|length > 5 %}
+                    <p class="text-muted small text-center mt-2">+ {{ waiting_list|length - 5 }} more waiting in queue.</p>
+                {% endif %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">✨</div>
+                    <h3 class="empty-title">Queue is Clear</h3>
+                    <p class="empty-description">There are no customers waiting. Incoming orders can immediately be served if slots are open.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

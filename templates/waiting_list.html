@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Waiting Queue{% endblock %}
+{% block page_title %}Waiting List Queue (FIFO){% endblock %}
+
+{% block content %}
+<div class="waiting-list-container">
+
+    <!-- Top Status Bar -->
+    <div class="table-header-bar">
+        <div class="table-meta">
+            <h2 class="section-title">Customers in Waiting Queue</h2>
+            <p class="section-subtitle">
+                Oldest entries at the top (First-In, First-Out from <code>v_waiting_queue</code>). Waiting customers are automatically promoted as soon as an active order is marked delivered.
+            </p>
+        </div>
+        <div class="table-actions">
+            <span class="badge {% if waiting_queue|length > 0 %}badge-warning{% else %}badge-neutral{% endif %} badge-lg">
+                {{ waiting_queue|length }} Waiting
+            </span>
+            <a href="{{ url_for('active_tokens_view') }}" class="btn btn-secondary btn-sm">View Active Tokens</a>
+        </div>
+    </div>
+
+    <!-- Waiting Queue Table Card -->
+    <div class="card">
+        <div class="card-body">
+            {% if waiting_queue %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="waitingTable">
+                    <thead>
+                        <tr>
+                            <th class="w-pos">Queue Pos</th>
+                            <th>Daily Queue #</th>
+                            <th>Customer Name</th>
+                            <th>Roll Number</th>
+                            <th>Order ID</th>
+                            <th>Joined Waiting List</th>
+                            <th>Waiting Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in waiting_queue %}
+                        <tr class="{% if row.queue_position == 1 %}table-row-highlight{% endif %}">
+                            <td>
+                                <div class="queue-badge-circle {% if row.queue_position == 1 %}queue-next{% endif %}">
+                                    #{{ row.queue_position }}
+                                </div>
+                                {% if row.queue_position == 1 %}
+                                    <span class="badge badge-success badge-xs mt-1">NEXT IN LINE</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="queue-num-tag">Q-{{ row.queue_number }}</span>
+                            </td>
+                            <td>
+                                <div class="customer-name font-bold">{{ row.full_name }}</div>
+                            </td>
+                            <td>
+                                {% if row.roll_number %}
+                                    <span class="badge badge-light">{{ row.roll_number }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>#{{ row.order_id }}</td>
+                            <td>
+                                <span class="time-display">{{ row.joined_at.strftime('%Y-%m-%d %H:%M:%S') if row.joined_at else '-' }}</span>
+                            </td>
+                            <td>
+                                <span class="wait-time-tag {% if row.waiting_minutes > 15 %}wait-time-high{% endif %}">
+                                    ⏳ {{ row.waiting_minutes }} min
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-waiting">{{ row.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">✨</div>
+                <h3 class="empty-title">Waiting Queue is Empty!</h3>
+                <p class="empty-description">
+                    There are no customers currently waiting for a token. Any new registration will immediately receive an active token provided there are free slots.
+                </p>
+                <a href="{{ url_for('register_customer') }}" class="btn btn-primary btn-md">+ Register Customer</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

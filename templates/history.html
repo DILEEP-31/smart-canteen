@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Order History{% endblock %}
+{% block page_title %}Completed Orders History{% endblock %}
+
+{% block content %}
+<div class="history-container">
+
+    <!-- Filter & Search Toolbar -->
+    <div class="card filter-card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('order_history_view') }}" class="filter-form" id="historyFilterForm">
+                <div class="filter-row">
+                    <!-- Search by Name -->
+                    <div class="filter-field filter-search">
+                        <label for="searchName" class="form-label">Search Customer Name</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">🔍</span>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="searchName"
+                                name="q"
+                                placeholder="Search by name (e.g. Ravi)..."
+                                value="{{ search_name or '' }}"
+                                autocomplete="off"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Filter by Date -->
+                    <div class="filter-field filter-date">
+                        <label for="filterDate" class="form-label">Filter by Business Date</label>
+                        <input
+                            type="date"
+                            class="form-control"
+                            id="filterDate"
+                            name="date"
+                            value="{{ filter_date or '' }}"
+                        >
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <span>Filter Records</span>
+                        </button>
+                        {% if search_name or filter_date %}
+                            <a href="{{ url_for('order_history_view') }}" class="btn btn-secondary" title="Clear Filters">
+                                Reset
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Table Card -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title-group">
+                <h2 class="card-title">Completed Orders</h2>
+                <span class="badge badge-neutral">{{ history_records|length }} Records Found</span>
+            </div>
+            {% if search_name or filter_date %}
+                <div class="active-filter-indicator small text-muted">
+                    Active Filters:
+                    {% if search_name %}<strong>Name: "{{ search_name }}"</strong>{% endif %}
+                    {% if search_name and filter_date %} &bull; {% endif %}
+                    {% if filter_date %}<strong>Date: {{ filter_date }}</strong>{% endif %}
+                </div>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if history_records %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer Name</th>
+                            <th>Roll Number</th>
+                            <th>Token #</th>
+                            <th>Business Date</th>
+                            <th>Registered At</th>
+                            <th>Delivered At</th>
+                            <th>Turnaround Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in history_records %}
+                        <tr>
+                            <td>
+                                <strong>#{{ order.order_id }}</strong>
+                            </td>
+                            <td>
+                                <span class="customer-name font-bold">{{ order.full_name }}</span>
+                            </td>
+                            <td>
+                                {% if order.roll_number %}
+                                    <span class="badge badge-light">{{ order.roll_number }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="token-pill token-pill-history">Token #{{ order.token_number }}</span>
+                            </td>
+                            <td>{{ order.business_date }}</td>
+                            <td>
+                                <span class="time-display">{{ order.registered_at.strftime('%Y-%m-%d %H:%M:%S') if order.registered_at else '-' }}</span>
+                            </td>
+                            <td>
+                                <span class="time-display">{{ order.completed_at.strftime('%Y-%m-%d %H:%M:%S') if order.completed_at else '-' }}</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-turnaround">
+                                    ⏱️ {{ order.total_minutes }} min
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-completed">COMPLETED</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📜</div>
+                <h3 class="empty-title">No Matching Order Records</h3>
+                <p class="empty-description">
+                    {% if search_name or filter_date %}
+                        No completed orders matched your search criteria. Try modifying or clearing your filters.
+                    {% else %}
+                        No completed orders exist yet in the database. When an active token is marked delivered, it will appear here.
+                    {% endif %}
+                </p>
+                {% if search_name or filter_date %}
+                    <a href="{{ url_for('order_history_view') }}" class="btn btn-secondary btn-sm">Clear Filters</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

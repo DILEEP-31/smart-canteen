@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Register Customer{% endblock %}
+{% block page_title %}Register Customer at Counter{% endblock %}
+
+{% block content %}
+<div class="register-container">
+    <div class="register-grid">
+        <!-- Registration Form Card -->
+        <div class="card form-card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">Customer Order Registration</h2>
+                    <p class="card-subtitle">Enter customer details to generate an active token or queue assignment.</p>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <!-- Registration Result Flash Box (if recently submitted) -->
+                {% if registration_result %}
+                    <div class="result-box {% if registration_result.status == 'ACTIVE' %}result-box-active{% elif registration_result.status == 'WAITING' %}result-box-waiting{% else %}result-box-rejected{% endif %}">
+                        <div class="result-header">
+                            <span class="result-status-badge badge-{{ registration_result.status|lower }}">
+                                STATUS: {{ registration_result.status }}
+                            </span>
+                            <span class="result-order-id">Order ID: #{{ registration_result.order_id }}</span>
+                        </div>
+                        <div class="result-content">
+                            {% if registration_result.status == 'ACTIVE' %}
+                                <div class="token-display">
+                                    <div class="token-display-label">ASSIGNED TOKEN NUMBER</div>
+                                    <div class="token-display-number">{{ registration_result.token_number }}</div>
+                                    <div class="token-display-help">Customer may proceed to the counter when Token #{{ registration_result.token_number }} is called.</div>
+                                </div>
+                            {% elif registration_result.status == 'WAITING' %}
+                                <div class="waiting-display">
+                                    <div class="waiting-display-icon">⏳</div>
+                                    <div class="waiting-display-title">Added to Waiting List</div>
+                                    <div class="waiting-display-number">Queue #{{ registration_result.queue_number }}</div>
+                                    <p class="waiting-display-text">{{ registration_result.message }}</p>
+                                </div>
+                            {% else %}
+                                <div class="rejected-display">
+                                    <div class="rejected-display-icon">⚠️</div>
+                                    <div class="rejected-display-title">Registration Could Not Be Completed</div>
+                                    <p class="rejected-display-text">{{ registration_result.message }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Registration Form -->
+                <form method="POST" action="{{ url_for('register_customer') }}" id="registerForm" class="app-form" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <!-- Customer Name -->
+                    <div class="form-group">
+                        <label for="fullName" class="form-label required">
+                            Full Name <span class="text-danger">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="fullName"
+                            name="full_name"
+                            placeholder="e.g. Ravi Kumar"
+                            minlength="2"
+                            maxlength="100"
+                            required
+                            autocomplete="off"
+                            value="{{ prev_name or '' }}"
+                            autofocus
+                        >
+                        <small class="form-help">Must be between 2 and 100 characters.</small>
+                        <div class="invalid-feedback" id="nameError">Please enter a valid customer name (at least 2 characters).</div>
+                    </div>
+
+                    <!-- Roll Number (Optional) -->
+                    <div class="form-group">
+                        <label for="rollNumber" class="form-label">
+                            Student / Staff Roll Number <span class="text-muted">(Optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="rollNumber"
+                            name="roll_number"
+                            placeholder="e.g. 22CS101 or STAFF-04"
+                            maxlength="30"
+                            autocomplete="off"
+                            value="{{ prev_roll or '' }}"
+                        >
+                        <small class="form-help">Optional college ID or roll number for identification.</small>
+                    </div>
+
+                    <!-- Submit Button with Double-Submission Prevention -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitRegisterBtn">
+                            <span class="btn-spinner" id="registerSpinner" style="display: none;"></span>
+                            <span class="btn-text" id="registerBtnText">🎟️ Generate Token</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Sidebar Info & System Status -->
+        <div class="register-sidebar">
+            <!-- Live Capacity Status Card -->
+            <div class="card status-summary-card">
+                <div class="card-header">
+                    <h3 class="card-title">Token Slot Status</h3>
+                </div>
+                <div class="card-body">
+                    <div class="slot-counter-banner {% if summary.active_tokens >= 15 %}banner-full{% else %}banner-available{% endif %}">
+                        <div class="slot-count-big">{{ summary.active_tokens }} / 15</div>
+                        <div class="slot-count-label">Active Tokens In Use</div>
+                    </div>
+
+                    <div class="status-rules-box">
+                        <h4 class="rules-title">System Allocation Rules:</h4>
+                        <ul class="rules-list">
+                            <li>
+                                <strong>Tokens 1–15:</strong> Active tokens are granted immediately if any slot is vacant.
+                            </li>
+                            <li>
+                                <strong>15 Max Capacity:</strong> If all 15 slots are occupied, the customer is placed in the FIFO <strong>Waiting List</strong>.
+                            </li>
+                            <li>
+                                <strong>Automatic Promotion:</strong> Once an active order is marked as delivered, the freed token is automatically handed to the next waiting customer.
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="queue-status-quick">
+                        <div class="quick-stat-item">
+                            <span class="label">Available Slots:</span>
+                            <span class="value text-success font-bold">{{ summary.available_slots }}</span>
+                        </div>
+                        <div class="quick-stat-item">
+                            <span class="label">Currently Waiting:</span>
+                            <span class="value text-warning font-bold">{{ summary.customers_waiting }}</span>
+                        </div>
+                        <div class="quick-stat-item">
+                            <span class="label">Served Today:</span>
+                            <span class="value text-info font-bold">{{ summary.completed_today }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stored Procedure Info Note for DBMS Pair Programming -->
+            <div class="card dbms-note-card">
+                <div class="card-header">
+                    <h3 class="card-title">DBMS Procedure Call</h3>
+                </div>
+                <div class="card-body small">
+                    <p class="text-muted">
+                        This action calls the MySQL stored procedure <code>sp_generate_token(name, roll, OUT ...)</code>.
+                        All slot assignments, counter locking (slot 1), and FIFO queueing are strictly enforced inside MySQL.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

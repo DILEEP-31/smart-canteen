@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} | College Smart Canteen</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <span class="brand-icon">🍽️</span>
+                    <div class="brand-text">
+                        <span class="brand-title">Smart Canteen</span>
+                        <span class="brand-subtitle">Token Management</span>
+                    </div>
+                </div>
+                <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close Sidebar">&times;</button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">MAIN MENU</div>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                            <span class="nav-icon">📊</span>
+                            <span class="nav-label">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('register_customer') }}" class="nav-link {% if active_page == 'register' %}active{% endif %}">
+                            <span class="nav-icon">➕</span>
+                            <span class="nav-label">Register Customer</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('active_tokens_view') }}" class="nav-link {% if active_page == 'active_tokens' %}active{% endif %}">
+                            <span class="nav-icon">🎟️</span>
+                            <span class="nav-label">Active Tokens</span>
+                            {% if nav_active_count is defined and nav_active_count > 0 %}
+                                <span class="nav-badge">{{ nav_active_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('waiting_list_view') }}" class="nav-link {% if active_page == 'waiting_list' %}active{% endif %}">
+                            <span class="nav-icon">⏳</span>
+                            <span class="nav-label">Waiting Queue</span>
+                            {% if nav_waiting_count is defined and nav_waiting_count > 0 %}
+                                <span class="nav-badge nav-badge-warning">{{ nav_waiting_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-section-title">RECORDS & INSIGHTS</div>
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="{{ url_for('order_history_view') }}" class="nav-link {% if active_page == 'history' %}active{% endif %}">
+                            <span class="nav-icon">📜</span>
+                            <span class="nav-label">Order History</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('reports_view') }}" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
+                            <span class="nav-icon">📈</span>
+                            <span class="nav-label">Daily Reports</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="db-pill">
+                    <span class="db-indicator db-connected"></span>
+                    <span class="db-text">MySQL Active (3306)</span>
+                </div>
+                <div class="sidebar-credit">InnoDB • Token Slots: 15</div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Top Navbar -->
+            <header class="app-topbar">
+                <div class="topbar-left">
+                    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" aria-label="Toggle Navigation">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                    <h1 class="page-header-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                </div>
+                <div class="topbar-right">
+                    <div class="topbar-clock" id="liveClock">--:--:--</div>
+                    <a href="{{ url_for('register_customer') }}" class="btn btn-sm btn-primary">
+                        <span>+ Register</span>
+                    </a>
+                </div>
+            </header>
+
+            <!-- Flash Notifications / Toasts -->
+            <div class="toast-container" id="toastContainer" aria-live="polite">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="toast toast-{{ category }} alert alert-{{ category }}" role="alert">
+                                <div class="toast-icon">
+                                    {% if category == 'success' %}✅
+                                    {% elif category == 'danger' or category == 'error' %}❌
+                                    {% elif category == 'warning' %}⚠️
+                                    {% else %}ℹ️{% endif %}
+                                </div>
+                                <div class="toast-body">{{ message }}</div>
+                                <button type="button" class="toast-close" onclick="this.parentElement.remove()" aria-label="Close notification">&times;</button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- Page Body Content -->
+            <main class="page-content" id="mainContent">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <div class="footer-content">
+                    <span>College Smart Canteen Token System &copy; 2026. Powered by Flask &amp; MySQL.</span>
+                    <span>Max Capacity: 15 Concurrent Tokens</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal Component -->
+    <div class="modal-overlay" id="confirmModal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Confirm Action</h3>
+                <button type="button" class="modal-close-btn" id="modalCancelBtnCross">&times;</button>
+            </div>
+            <div class="modal-body" id="modalMessage">
+                Are you sure you want to proceed?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+                <button type="button" class="btn btn-danger" id="modalConfirmBtn">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
